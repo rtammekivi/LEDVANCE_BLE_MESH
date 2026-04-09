@@ -83,4 +83,4 @@ light:
 #       cold_white_color_temperature: 6500 K
 #       warm_white_color_temperature: 2000 K
 #
-# See gateway-c6-ha.yaml and prod/esp32-c6.yaml for full examples.
+# See gateway-c6-ha.yaml and esp32-c6-generic-sigmesh.yaml for full examples.
