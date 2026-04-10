@@ -2,7 +2,7 @@
 
 Control **LEDVANCE Bluetooth Mesh bulbs** from [Home Assistant](https://home-assistant.io) using an ESP32 as a gateway.
 
-Supports: **On/Off**, **Brightness**, **HSL Color**.
+Supports: **On/Off**, **Brightness**, **Color Temperature (CTL)**, **HSL Color**. ACK and NO ACK modes configurable per lamp.
 
 ---
 
@@ -59,15 +59,74 @@ esp32:
       CONFIG_BLE_MESH_GENERIC_ONOFF_CLI: "y"
       CONFIG_BLE_MESH_GENERIC_LEVEL_CLI: "y"
       CONFIG_BLE_MESH_LIGHT_LIGHTNESS_CLI: "y"
+      CONFIG_BLE_MESH_LIGHT_CTL_CLI: "y"
       CONFIG_BT_ENABLED: "y"
       CONFIG_BLE_MESH_SETTINGS: "y"
 ```
 
 ### Adding Lamps
 
-#### Option A: Inline YAML (requires ESP recompilation for new lamps)
+#### Color Temperature Lamp (brightness + color temperature)
 
-Create template outputs for each lamp using its unicast address:
+For LEDVANCE tunable white lamps, use two template outputs (brightness + color temperature) and the `color_temperature` light platform:
+
+```yaml
+globals:
+  - id: lamp_brightness
+    type: float
+    initial_value: '0.0'
+  - id: lamp_color_temp
+    type: float
+    initial_value: '0.5'
+
+output:
+  # Brightness output — sends Lightness SET + CTL to maintain temperature
+  - platform: template
+    id: mesh_output_brightness
+    type: float
+    write_action:
+      - lambda: |
+          id(lamp_brightness) = state;
+          if (state > 0.001f) {
+            uint16_t lightness = (uint16_t)(state * 65535.0f);
+            float ct = id(lamp_color_temp);
+            uint16_t temp_k = 800 + (uint16_t)(ct * 19200.0f);
+            ble_mesh_bridge_send_level(0x0005, lightness, false);
+            ble_mesh_bridge_send_ctl(0x0005, lightness, temp_k, 0, false);
+          } else {
+            ble_mesh_bridge_send_onoff(0x0005, false, false);
+          }
+
+  # Color temperature output — sends CTL SET
+  - platform: template
+    id: mesh_output_color_temp
+    type: float
+    write_action:
+      - lambda: |
+          id(lamp_color_temp) = state;
+          float bright = id(lamp_brightness);
+          if (bright > 0.001f) {
+            uint16_t lightness = (uint16_t)(bright * 65535.0f);
+            uint16_t temp_k = 800 + (uint16_t)(state * 19200.0f);
+            ble_mesh_bridge_send_ctl(0x0005, lightness, temp_k, 0, false);
+          }
+
+light:
+  - platform: color_temperature
+    name: "My Lamp"
+    color_temperature: mesh_output_color_temp
+    brightness: mesh_output_brightness
+    cold_white_color_temperature: 6500 K
+    warm_white_color_temperature: 2000 K
+    gamma_correct: 1.0
+    default_transition_length: 0s
+```
+
+> **Note on ACK mode**: For ACK-only lamps (e.g., Julie), change `false` to `true` in `send_level()`, `send_ctl()`, and `send_onoff()` calls.
+
+#### Brightness-Only Lamp (monochromatic)
+
+For lamps without color temperature control:
 
 ```yaml
 output:
@@ -77,7 +136,7 @@ output:
     write_action:
       - lambda: |-
           static uint32_t last = 0;
-          id(mesh_gateway).control_light(0x0020, state, last, 50);
+          id(mesh_gateway).control_light(0x0020, state, last, 65535);
 
 light:
   - platform: monochromatic
@@ -87,58 +146,69 @@ light:
     default_transition_length: 0s
 ```
 
-#### Option B: Service-Based (recommended - no ESP recompilation)
+#### Service-Based Control (no recompilation needed)
 
-Add services to your ESPHome config once:
+Add services to your ESPHome config for dynamic control from Home Assistant:
 
 ```yaml
 api:
   services:
-    - service: set_mesh_light
+    # Raw OnOff: state: 0=OFF 1=ON, use_ack: 0=UNACK 1=ACK
+    - service: set_mesh_onoff
       variables:
         address: int
-        brightness: float
-        max_level: int
+        state: int
+        use_ack: int
       then:
         - lambda: |-
-            static std::map<uint16_t, uint32_t> last_sends;
-            id(mesh_gateway).control_light(address, brightness, last_sends[address], max_level);
+            ble_mesh_bridge_send_onoff((uint16_t)address, state != 0, use_ack != 0);
 
-    - service: set_mesh_light_hsl
+    # Raw Lightness SET: level: 0-65535
+    - service: set_mesh_lightness
       variables:
         address: int
-        brightness: float
-        hue: float
-        saturation: float
-        max_level: int
+        level: int
+        use_ack: int
       then:
         - lambda: |-
-            static std::map<uint16_t, uint32_t> last_sends;
-            id(mesh_gateway).control_light_hsl(address, brightness, hue, saturation, last_sends[address], max_level);
+            ble_mesh_bridge_send_level((uint16_t)address, (uint16_t)level, use_ack != 0);
+
+    # Raw CTL SET: lightness: 0-65535, temperature: 800-20000
+    - service: set_mesh_ctl
+      variables:
+        address: int
+        lightness: int
+        temperature: int
+        use_ack: int
+      then:
+        - lambda: |-
+            ble_mesh_bridge_send_ctl((uint16_t)address, (uint16_t)lightness,
+                                    (uint16_t)temperature, 0, use_ack != 0);
 ```
 
-Then define lamps in Home Assistant's `configuration.yaml` - see [`esphome/homeassistant_example.yaml`](esphome/homeassistant_example.yaml).
+### Bridge API Reference
 
-**Parameters:**
-- `address` - Lamp's unicast address (decimal, e.g., 32 = 0x0020)
-- `brightness` - 0.0-1.0
-- `hue` - 0-360 (for HSL)
-- `saturation` - 0.0-1.0 (for HSL)
-- `max_level` - 50 for LEDVANCE, 255 for standard
+| Function | Description |
+|----------|-------------|
+| `ble_mesh_bridge_send_onoff(addr, state, ack)` | ON/OFF control |
+| `ble_mesh_bridge_send_level(addr, level, ack)` | Lightness SET (0-65535) |
+| `ble_mesh_bridge_send_ctl(addr, lightness, temp, delta_uv, ack)` | CTL SET (lightness + temperature) |
+| `ble_mesh_bridge_send_hsl(addr, lightness, hue, sat, ack)` | HSL SET (color) |
+| `ble_mesh_bridge_send_lightness_range_get(addr)` | Query lightness range |
+| `ble_mesh_bridge_send_ctl_temperature_range_get(addr)` | Query CTL temperature range |
 
-### HSL Color Control
+### LEDVANCE-Specific Notes
 
-For color-changing lamps, use `control_light_hsl`:
-
-```yaml
-- lambda: |-
-    static uint32_t last = 0;
-    id(mesh_gateway).control_light_hsl(0x0020, brightness, hue, saturation, last, 50);
-```
+| Parameter | Range | Notes |
+|-----------|-------|-------|
+| Lightness | 1 – 65535 | Full 16-bit range, change visible ~5000-10000 |
+| CTL Temperature | 800 – 20000 | Internal mesh units (not real Kelvin) |
+| ACK mode | per lamp | Some lamps (e.g., Julie) require ACK, others work with NO ACK |
+| RANGE_GET | ❌ | LEDVANCE lamps do not respond to range queries |
 
 ### Example Configs
 
-See [`esphome/gateway.yaml`](esphome/gateway.yaml) (ESP32) and [`esphome/gateway-c6.yaml`](esphome/gateway-c6.yaml) (ESP32-C6).
+See [`esphome/esp32-c6-generic-sigmesh.yaml`](esphome/esp32-c6-generic-sigmesh.yaml) for a complete ESP32-C6 example with two lamps (Lamp1 + Lamp2).
 
 ---
 
@@ -170,16 +240,18 @@ Before using either variant, provision your lamps with the **nRF Mesh App**:
 
 1. **Reset lamp** (toggle power 5x)
 2. **Provision** with nRF Mesh app
-3. **Bind Application Key** to these models:
+3. **Bind Application Key** to these models on the lamp:
    - Generic OnOff Server
-   - Generic Level Server  
+   - Generic Level Server
    - Light Lightness Server
+   - Light CTL Server (for color temperature)
    - Light HSL Server (for color)
-4. **Note the Unicast Address** (e.g., `0x0002`)
+4. **Note the Unicast Address** (e.g., `0x0005`)
 5. **Provision ESP gateway** and bind same App Key to:
    - Generic OnOff Client
    - Generic Level Client
    - Light Lightness Client
+   - Light CTL Client (auto-binds if on same element)
 
 ---
 
