@@ -1,6 +1,6 @@
-# LEDVANCE ESP BLE Mesh Gateway
+# Homeassisstant ESP BLE Mesh Gateway (ESPHOME)
 
-Control **LEDVANCE Bluetooth Mesh bulbs** from [Home Assistant](https://home-assistant.io) using an ESP32 as a gateway.
+Control **Bluetooth Mesh bulbs** from [Home Assistant](https://home-assistant.io) using an ESP32 as a gateway.
 
 Supports: **On/Off**, **Brightness**, **Color Temperature (CTL)**, **HSL Color**. ACK and NO ACK modes configurable per lamp.
 
