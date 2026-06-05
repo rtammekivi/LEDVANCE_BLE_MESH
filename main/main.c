@@ -353,7 +353,9 @@ static esp_err_t bluetooth_init(void)
 {
     esp_err_t err;
 
+#ifdef CONFIG_BT_CLASSIC_ENABLED
     ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT));
+#endif
 
     esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
     err = esp_bt_controller_init(&bt_cfg);
@@ -510,7 +512,7 @@ void ble_mesh_send_hsl_set(uint16_t hue, uint16_t saturation, uint16_t addr)
     common.msg_role = ROLE_NODE;
 
     set.hsl_set.op_en = false;
-    set.hsl_set.hsl_lightness = 70;
+    set.hsl_set.hsl_lightness = 65535; // Default to full brightness when setting color
     set.hsl_set.hsl_hue = hue;
     set.hsl_set.hsl_saturation = saturation;
     set.hsl_set.tid = app_state.tid++;
@@ -646,7 +648,7 @@ static void handle_lamp_command(esp_mqtt_event_handle_t event)
         uint16_t hue16 = (uint16_t)huenum;
         uint16_t sat16 = (uint16_t)satnum;
         ble_mesh_send_hsl_set(hue16,sat16,addr);
-        snprintf(state_payload, sizeof(state_payload), "{\"state\":\"ON\", \"color\":{\"h\":%d,\"s\"%d}:}", hue16,sat16);
+        snprintf(state_payload, sizeof(state_payload), "{\"state\":\"ON\", \"color\":{\"h\":%d,\"s\":%d}}", hue16,sat16);
         esp_mqtt_client_publish(mqtt_client, state_topic, state_payload, 0, 0, false);
 
     }

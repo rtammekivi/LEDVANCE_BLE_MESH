@@ -7,8 +7,7 @@
 #error "CONFIG_BLE_MESH not defined! Check sdkconfig."
 #endif
 
-namespace esphome {
-namespace ble_mesh_gateway {
+namespace esphome::ble_mesh_gateway {
 
 static const char *TAG = "ble_mesh_gateway";
 
@@ -114,5 +113,4 @@ protected:
   bool init_done_ = false;
 };
 
-} // namespace ble_mesh_gateway
-} // namespace esphome
+} // namespace esphome::ble_mesh_gateway

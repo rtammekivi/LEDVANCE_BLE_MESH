@@ -24,6 +24,8 @@ ble_mesh_gateway:
 esp32:
   board: esp32-c6-devkitc-1
   variant: esp32c6
+  watchdog_timeout: 30s
+  toolchain: esp-idf
   framework:
     type: esp-idf
     sdkconfig_options:
@@ -59,6 +61,7 @@ logger:
 api:
   encryption:
     key: !secret api_key
+  max_connections: 8
   services:
     # Raw OnOff: state: 0=OFF 1=ON, use_ack: 0=UNACK 1=ACK
     - service: set_mesh_onoff

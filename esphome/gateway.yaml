@@ -17,6 +17,8 @@ ble_mesh_gateway:
 
 esp32:
   board: esp32dev
+  watchdog_timeout: 30s
+  toolchain: esp-idf
   framework:
     type: esp-idf
     sdkconfig_options:
@@ -50,7 +52,7 @@ logger:
   level: DEBUG
 
 api:
-  password: ""
+  max_connections: 8
 
 ota:
   - platform: esphome
