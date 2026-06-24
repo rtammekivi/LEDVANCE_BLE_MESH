@@ -41,6 +41,8 @@ esp32:
       CONFIG_BLE_MESH_RELAY_MSG_COUNT: "20"
       CONFIG_BT_ENABLED: "y"
       CONFIG_BLE_MESH_SETTINGS: "y"
+      CONFIG_BLE_MESH_STORE_TIMEOUT: "2"
+      CONFIG_BLE_MESH_SEQ_STORE_RATE: "120"
 
 esp32_ble_tracker:
   scan_parameters:

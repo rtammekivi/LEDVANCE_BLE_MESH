@@ -408,10 +408,14 @@ static esp_err_t ble_mesh_init(void)
         ESP_LOGE(TAG, "Failed to initialize mesh stack (err %d)", err);
         return err;
     }
-    err = esp_ble_mesh_node_prov_enable(ESP_BLE_MESH_PROV_ADV | ESP_BLE_MESH_PROV_GATT);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to enable mesh node (err %d)", err);
-        return err;
+    if (!esp_ble_mesh_node_is_provisioned()) {
+        err = esp_ble_mesh_node_prov_enable(ESP_BLE_MESH_PROV_ADV | ESP_BLE_MESH_PROV_GATT);
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to enable mesh node (err %d)", err);
+            return err;
+        }
+    } else {
+        ESP_LOGI(TAG, "Node already provisioned, skipping prov enable");
     }
     ESP_LOGI(TAG, "BLE Mesh Node initialized");
     board_led_operation(GPIO_NUM_2, LED_OFF);

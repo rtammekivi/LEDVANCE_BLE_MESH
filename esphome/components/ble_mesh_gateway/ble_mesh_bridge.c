@@ -290,13 +290,17 @@ void ble_mesh_bridge_init(void) {
     return;
   }
 
-  err = esp_ble_mesh_node_prov_enable(ESP_BLE_MESH_PROV_ADV |
-                                      ESP_BLE_MESH_PROV_GATT);
-  if (err == ESP_ERR_INVALID_STATE) {
-    LOG_W(TAG, "Node prov already enabled? Continuing...");
-  } else if (err != ESP_OK) {
-    LOG_E(TAG, "Failed to enable mesh node (err %d)", err);
-    return;
+  if (!esp_ble_mesh_node_is_provisioned()) {
+    err = esp_ble_mesh_node_prov_enable(ESP_BLE_MESH_PROV_ADV |
+                                        ESP_BLE_MESH_PROV_GATT);
+    if (err == ESP_ERR_INVALID_STATE) {
+      LOG_W(TAG, "Node prov already enabled? Continuing...");
+    } else if (err != ESP_OK) {
+      LOG_E(TAG, "Failed to enable mesh node (err %d)", err);
+      return;
+    }
+  } else {
+    LOG_I(TAG, "Node already provisioned, skipping prov enable");
   }
 
   LOG_I(TAG, "BLE Mesh Node initialized (Bridge)");
