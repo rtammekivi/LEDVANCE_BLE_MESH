@@ -19,6 +19,13 @@
     <p>Connect your ESP device via USB and click the button below to flash the latest firmware.</p>
 
     <div class="card">
+        <label for="branchType">Select Branch:</label>
+        <select id="branchType">
+            <option value="dev">dev</option>
+        </select>
+
+        <br><br>
+
         <label for="chipType">Select your Chip Type:</label>
         <select id="chipType">
             <option value="esp32">ESP32 (Standard)</option>
@@ -29,19 +36,46 @@
 
         <br><br>
 
-        <esp-web-install-button id="installButton" manifest="firmware/esp32/manifest.json"></esp-web-install-button>
+        <esp-web-install-button id="installButton" manifest="firmware/dev/esp32/manifest.json"></esp-web-install-button>
     </div>
 
     <script>
-        const select = document.getElementById('chipType');
+        const chipSelect = document.getElementById('chipType');
+        const branchSelect = document.getElementById('branchType');
         const button = document.getElementById('installButton');
 
-        // Update the manifest URL when the user changes the chip selection
-        select.addEventListener('change', () => {
-            const chip = select.value;
-            button.manifest = `firmware/${chip}/manifest.json`;
-            console.log(`Switched to ${chip}`);
-        });
+        function updateManifest() {
+            const chip = chipSelect.value;
+            const branch = branchSelect.value;
+            button.manifest = `firmware/${branch}/${chip}/manifest.json`;
+            console.log(`Switched to branch: ${branch}, chip: ${chip}`);
+        }
+
+        chipSelect.addEventListener('change', updateManifest);
+        branchSelect.addEventListener('change', updateManifest);
+
+        // Fetch available branches dynamically
+        fetch('branches.json')
+            .then(res => res.json())
+            .then(branches => {
+                if (branches && branches.length > 0) {
+                    branchSelect.innerHTML = '';
+                    branches.forEach(b => {
+                        const opt = document.createElement('option');
+                        opt.value = b;
+                        opt.textContent = b;
+                        branchSelect.appendChild(opt);
+                    });
+                    
+                    if (branches.includes('dev')) {
+                        branchSelect.value = 'dev';
+                    } else {
+                        branchSelect.value = branches[0];
+                    }
+                    updateManifest();
+                }
+            })
+            .catch(err => console.warn("Could not load branches.json, using default options", err));
     </script>
 </body>
 </html>

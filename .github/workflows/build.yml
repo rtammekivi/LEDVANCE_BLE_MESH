@@ -3,7 +3,7 @@ name: Build ESP-IDF Project
 on:
   push:
     branches:
-      - dev
+      - '**'
     paths:
       - 'main/**'
       - 'web/**'
@@ -67,6 +67,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Checkout gh-pages
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages-branch
+          continue-on-error: true
+
       - name: Download Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -75,13 +82,20 @@ jobs:
       - name: Setup Web Directory
         run: |
           mkdir -p public/firmware
+          
+          # Copy existing firmwares from other branches if they exist
+          if [ -d "gh-pages-branch/firmware" ]; then
+            cp -r gh-pages-branch/firmware/* public/firmware/
+          fi
+          
           cp web/index.html public/index.html
 
       - name: Process Firmware & Generate Manifests
         run: |
+          BRANCH="${{ github.ref_name }}"
           for chip in esp32 esp32c3 esp32c6 esp32s3; do
             echo "Processing $chip..."
-            mkdir -p public/firmware/$chip
+            mkdir -p "public/firmware/$BRANCH/$chip"
             
             # Map build target to correct ESP Web Tools chipFamily name
             case $chip in
@@ -93,13 +107,13 @@ jobs:
             esac
 
             # Move and rename the single binary
-            cp artifacts/firmware-$chip/merged-binary.bin public/firmware/$chip/firmware.bin
+            cp artifacts/firmware-$chip/merged-binary.bin "public/firmware/$BRANCH/$chip/firmware.bin"
             
             # Generate manifest with correct chipFamily
-            cat <<EOF > public/firmware/$chip/manifest.json
+            cat <<EOF > "public/firmware/$BRANCH/$chip/manifest.json"
           {
             "name": "LEDVANCE BLE Mesh ($FAMILY)",
-            "version": "latest",
+            "version": "$BRANCH",
             "builds": [
               {
                 "chipFamily": "$FAMILY",
@@ -111,6 +125,12 @@ jobs:
           }
           EOF
           done
+
+      - name: Generate branches.json
+        run: |
+          cd public/firmware
+          ls -1d */ | sed 's/\///' | jq -R -s -c 'split("\n")[:-1]' > ../branches.json
+          cd ../..
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
