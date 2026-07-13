@@ -403,12 +403,22 @@ static esp_err_t ble_mesh_init(void)
     esp_ble_mesh_register_generic_client_callback(ble_mesh_generic_client_cb);
     esp_ble_mesh_register_light_client_callback(ble_mesh_lighting_client_cb);
 
+#ifdef CONFIG_BLE_MESH_SETTINGS
+    ESP_LOGI(TAG, "BLE Mesh Settings (NVS persistence) is ENABLED");
+#else
+    ESP_LOGW(TAG, "BLE Mesh Settings (NVS persistence) is DISABLED - provisioning will NOT survive reboot!");
+#endif
+
     err = esp_ble_mesh_init(&provision, &composition);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Failed to initialize mesh stack (err %d)", err);
         return err;
     }
-    if (!esp_ble_mesh_node_is_provisioned()) {
+
+    bool provisioned = esp_ble_mesh_node_is_provisioned();
+    ESP_LOGI(TAG, "esp_ble_mesh_node_is_provisioned() = %s", provisioned ? "TRUE" : "FALSE");
+
+    if (!provisioned) {
         err = esp_ble_mesh_node_prov_enable(ESP_BLE_MESH_PROV_ADV | ESP_BLE_MESH_PROV_GATT);
         if (err != ESP_OK) {
             ESP_LOGE(TAG, "Failed to enable mesh node (err %d)", err);
