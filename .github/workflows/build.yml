@@ -67,12 +67,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Checkout gh-pages
-        uses: actions/checkout@v4
-        with:
-          ref: gh-pages
-          path: gh-pages-branch
-          continue-on-error: true
+      - name: Fetch existing gh-pages
+        run: |
+          git clone --branch gh-pages https://github.com/${{ github.repository }} gh-pages-branch || echo "gh-pages branch not found, starting fresh."
 
       - name: Download Artifacts
         uses: actions/download-artifact@v4
@@ -131,6 +128,13 @@ jobs:
           cd public/firmware
           ls -1d */ | sed 's/\///' | jq -R -s -c 'split("\n")[:-1]' > ../branches.json
           cd ../..
+
+      - name: Push to gh-pages for storage
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
+          keep_files: false
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
