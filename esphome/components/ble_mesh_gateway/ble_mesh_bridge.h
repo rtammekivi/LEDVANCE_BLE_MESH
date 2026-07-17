@@ -20,6 +20,7 @@ void ble_mesh_bridge_renew_prov_adv(void);
 void ble_mesh_bridge_poll_onoff(uint16_t addr);
 void ble_mesh_bridge_poll_end(void);
 int ble_mesh_bridge_take_poll_result(void);
+int ble_mesh_bridge_poll_reply_count(void);
 #ifdef __cplusplus
 #define BLE_MESH_ARG_DEFAULT(x) = x
 #else

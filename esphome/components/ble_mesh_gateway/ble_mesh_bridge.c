@@ -29,6 +29,7 @@ extern int bt_mesh_scan_enable(void);
 #define POLL_RESULT_NONE (-2)
 #define POLL_RESULT_TIMEOUT (-1)
 static volatile int s_poll_result = POLL_RESULT_NONE;
+static volatile int s_poll_replies = 0;
 #define CID_ESP 0x02E5
 #define NVS_MESH_INFO_KEY "mesh_info_clean"
 
@@ -193,6 +194,7 @@ generic_client_callback(esp_ble_mesh_generic_client_cb_event_t event,
       LOG_I(TAG, "OnOff status from 0x%04X: state=%d",
             addr, param->status_cb.onoff_status.present_onoff);
       s_poll_result = param->status_cb.onoff_status.present_onoff ? 1 : 0;
+      s_poll_replies++;
     }
     break;
   case ESP_BLE_MESH_GENERIC_CLIENT_PUBLISH_EVT:
@@ -200,6 +202,7 @@ generic_client_callback(esp_ble_mesh_generic_client_cb_event_t event,
       LOG_I(TAG, "OnOff status (unsolicited) from 0x%04X: state=%d",
             param->params->ctx.addr, param->status_cb.onoff_status.present_onoff);
       s_poll_result = param->status_cb.onoff_status.present_onoff ? 1 : 0;
+      s_poll_replies++;
     }
     break;
   case ESP_BLE_MESH_GENERIC_CLIENT_TIMEOUT_EVT:
@@ -383,12 +386,15 @@ void ble_mesh_bridge_poll_onoff(uint16_t addr) {
   common.msg_timeout = 1000;
 
   s_poll_result = POLL_RESULT_NONE;
+  s_poll_replies = 0;
   int scan_err = bt_mesh_scan_enable();
   esp_err_t get_err = esp_ble_mesh_generic_client_get_state(&common, &get);
   LOG_I(TAG, "Poll OnOff 0x%04X: scan_err=%d get_err=%d", addr, scan_err, (int)get_err);
 }
 
 void ble_mesh_bridge_poll_end(void) { bt_mesh_scan_disable(); }
+
+int ble_mesh_bridge_poll_reply_count(void) { return s_poll_replies; }
 
 int ble_mesh_bridge_take_poll_result(void) {
   int r = s_poll_result;
