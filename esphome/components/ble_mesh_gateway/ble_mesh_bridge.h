@@ -19,6 +19,8 @@ extern volatile bool ble_mesh_bridge_prov_link_open;
 void ble_mesh_bridge_renew_prov_adv(void);
 void ble_mesh_bridge_send_onoff(uint16_t addr, bool state, bool use_ack);
 void ble_mesh_bridge_send_level(uint16_t addr, uint16_t level, bool use_ack);
+void ble_mesh_bridge_send_gen_level(uint16_t addr, int16_t level, bool use_ack);
+void ble_mesh_bridge_send_lightness_linear(uint16_t addr, uint16_t level, bool use_ack);
 void ble_mesh_bridge_send_hsl(uint16_t addr, uint16_t lightness, uint16_t hue,
                               uint16_t saturation, bool use_ack);
 void ble_mesh_bridge_send_ctl(uint16_t addr, uint16_t lightness,

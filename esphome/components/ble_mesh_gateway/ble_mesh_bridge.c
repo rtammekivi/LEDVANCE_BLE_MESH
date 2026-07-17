@@ -387,6 +387,62 @@ void ble_mesh_bridge_send_level(uint16_t addr, uint16_t level, bool use_ack) {
   esp_ble_mesh_light_client_set_state(&common, &set);
 }
 
+void ble_mesh_bridge_send_gen_level(uint16_t addr, int16_t level, bool use_ack) {
+  if (s_app_state.app_idx == ESP_BLE_MESH_KEY_UNUSED) {
+    LOG_W(TAG, "AppKey not bound, cannot send GenLevel.");
+    return;
+  }
+
+  esp_ble_mesh_generic_client_set_state_t set = {0};
+  esp_ble_mesh_client_common_param_t common = {0};
+
+  common.opcode = use_ack ? ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET
+                          : ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET_UNACK;
+  common.model = level_client.model;
+  common.ctx.net_idx = s_app_state.net_idx;
+  common.ctx.app_idx = s_app_state.app_idx;
+  common.ctx.addr = addr;
+  common.ctx.send_ttl = 7;
+  common.msg_timeout = use_ack ? 1000 : 0;
+
+  set.level_set.op_en = false;
+  set.level_set.level = level;
+  set.level_set.tid = s_app_state.tid++;
+
+  LOG_I(TAG, "Send GenLevel %d to 0x%04X (%s)",
+        level, addr, use_ack ? "ACK" : "UNACK");
+
+  esp_ble_mesh_generic_client_set_state(&common, &set);
+}
+
+void ble_mesh_bridge_send_lightness_linear(uint16_t addr, uint16_t level, bool use_ack) {
+  if (s_app_state.app_idx == ESP_BLE_MESH_KEY_UNUSED) {
+    LOG_W(TAG, "AppKey not bound, cannot send LightnessLinear.");
+    return;
+  }
+
+  esp_ble_mesh_light_client_set_state_t set = {0};
+  esp_ble_mesh_client_common_param_t common = {0};
+
+  common.opcode = use_ack ? ESP_BLE_MESH_MODEL_OP_LIGHT_LIGHTNESS_LINEAR_SET
+                          : ESP_BLE_MESH_MODEL_OP_LIGHT_LIGHTNESS_LINEAR_SET_UNACK;
+  common.model = light_client.model;
+  common.ctx.net_idx = s_app_state.net_idx;
+  common.ctx.app_idx = s_app_state.app_idx;
+  common.ctx.addr = addr;
+  common.ctx.send_ttl = 7;
+  common.msg_timeout = use_ack ? 1000 : 0;
+
+  set.lightness_linear_set.op_en = false;
+  set.lightness_linear_set.lightness = level;
+  set.lightness_linear_set.tid = s_app_state.tid++;
+
+  LOG_I(TAG, "Send LightnessLinear %d to 0x%04X (%s)",
+        level, addr, use_ack ? "ACK" : "UNACK");
+
+  esp_ble_mesh_light_client_set_state(&common, &set);
+}
+
 void ble_mesh_bridge_send_hsl(uint16_t addr, uint16_t lightness, uint16_t hue,
                               uint16_t saturation, bool use_ack) {
   if (s_app_state.app_idx == ESP_BLE_MESH_KEY_UNUSED)
