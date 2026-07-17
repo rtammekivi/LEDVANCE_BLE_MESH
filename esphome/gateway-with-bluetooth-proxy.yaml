@@ -177,6 +177,7 @@ script:
                 static int empty_polls = 0;
                 int r = ble_mesh_bridge_take_poll_result();
                 ble_mesh_bridge_poll_end();
+                id(mesh_lamps_responding).publish_state(ble_mesh_bridge_poll_reply_count());
                 bool on;
                 if (r == -2) {
                   empty_polls++;
@@ -223,3 +224,12 @@ light:
     output: mesh_output_group
     gamma_correct: 1.0
     default_transition_length: 0s
+
+sensor:
+  - platform: template
+    name: "Mesh Lamps Responding"
+    id: mesh_lamps_responding
+    icon: mdi:lightbulb-group
+    accuracy_decimals: 0
+    entity_category: diagnostic
+    update_interval: never
