@@ -117,7 +117,10 @@ output:
     write_action:
       - lambda: |
           static uint32_t last = 0;
-          id(mesh_gateway).control_light(0xC000, state, last, 100, false,
+          float s = state;
+          if (s > 0.0f && s < 0.01f)
+            s = 0.01f;
+          id(mesh_gateway).control_light(0xC000, s, last, 100, false,
                                          (uint32_t) id(mesh_transition_ms).state,
                                          (uint16_t) id(mesh_delay_ms).state);
 
@@ -229,7 +232,7 @@ light:
     name: "LEDVANCE Lamps"
     id: mesh_light_group
     output: mesh_output_group
-    gamma_correct: 1.0
+    gamma_correct: 2.8
     default_transition_length: 0s
 
 
