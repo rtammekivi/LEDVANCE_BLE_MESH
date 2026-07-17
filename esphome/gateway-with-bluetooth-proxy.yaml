@@ -232,7 +232,7 @@ light:
     name: "LEDVANCE Lamps"
     id: mesh_light_group
     output: mesh_output_group
-    gamma_correct: 2.8
+    gamma_correct: 1.0
     default_transition_length: 0s
 
 
