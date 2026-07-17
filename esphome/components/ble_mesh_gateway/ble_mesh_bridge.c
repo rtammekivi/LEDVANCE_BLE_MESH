@@ -195,6 +195,13 @@ generic_client_callback(esp_ble_mesh_generic_client_cb_event_t event,
       s_poll_result = param->status_cb.onoff_status.present_onoff ? 1 : 0;
     }
     break;
+  case ESP_BLE_MESH_GENERIC_CLIENT_PUBLISH_EVT:
+    if (param->params->ctx.recv_op == ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_STATUS) {
+      LOG_I(TAG, "OnOff status (unsolicited) from 0x%04X: state=%d",
+            param->params->ctx.addr, param->status_cb.onoff_status.present_onoff);
+      s_poll_result = param->status_cb.onoff_status.present_onoff ? 1 : 0;
+    }
+    break;
   case ESP_BLE_MESH_GENERIC_CLIENT_TIMEOUT_EVT:
     LOG_W(TAG, "Generic client TIMEOUT: addr=0x%04X, opcode=0x%04X",
           addr, (unsigned)opcode);
