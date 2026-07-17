@@ -17,6 +17,9 @@ bool ble_mesh_bridge_is_ready_to_init(void);
 extern volatile bool ble_mesh_bridge_prov_link_open;
 
 void ble_mesh_bridge_renew_prov_adv(void);
+void ble_mesh_bridge_poll_onoff(uint16_t addr);
+void ble_mesh_bridge_poll_end(void);
+int ble_mesh_bridge_take_poll_result(void);
 #ifdef __cplusplus
 #define BLE_MESH_ARG_DEFAULT(x) = x
 #else

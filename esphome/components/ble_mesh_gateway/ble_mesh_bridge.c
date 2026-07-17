@@ -24,6 +24,11 @@
 static const char *TAG = "ble_mesh_bridge";
 
 extern int bt_mesh_scan_disable(void);
+extern int bt_mesh_scan_enable(void);
+
+#define POLL_RESULT_NONE (-2)
+#define POLL_RESULT_TIMEOUT (-1)
+static volatile int s_poll_result = POLL_RESULT_NONE;
 #define CID_ESP 0x02E5
 #define NVS_MESH_INFO_KEY "mesh_info_clean"
 
@@ -182,9 +187,20 @@ generic_client_callback(esp_ble_mesh_generic_client_cb_event_t event,
             addr, (unsigned)opcode, param->error_code);
     }
     break;
+  case ESP_BLE_MESH_GENERIC_CLIENT_GET_STATE_EVT:
+    if (param->error_code == ESP_OK &&
+        param->params->ctx.recv_op == ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_STATUS) {
+      LOG_I(TAG, "OnOff status from 0x%04X: state=%d",
+            addr, param->status_cb.onoff_status.present_onoff);
+      s_poll_result = param->status_cb.onoff_status.present_onoff ? 1 : 0;
+    }
+    break;
   case ESP_BLE_MESH_GENERIC_CLIENT_TIMEOUT_EVT:
     LOG_W(TAG, "Generic client TIMEOUT: addr=0x%04X, opcode=0x%04X",
           addr, (unsigned)opcode);
+    if (opcode == ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_GET) {
+      s_poll_result = POLL_RESULT_TIMEOUT;
+    }
     break;
   default:
     break;
@@ -340,6 +356,36 @@ void ble_mesh_bridge_renew_prov_adv(void) {
   }
   esp_ble_mesh_node_prov_disable(ESP_BLE_MESH_PROV_GATT);
   esp_ble_mesh_node_prov_enable(ESP_BLE_MESH_PROV_GATT);
+}
+
+void ble_mesh_bridge_poll_onoff(uint16_t addr) {
+  if (s_app_state.app_idx == ESP_BLE_MESH_KEY_UNUSED ||
+      !esp_ble_mesh_node_is_provisioned()) {
+    return;
+  }
+
+  esp_ble_mesh_generic_client_get_state_t get = {0};
+  esp_ble_mesh_client_common_param_t common = {0};
+
+  common.opcode = ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_GET;
+  common.model = onoff_client.model;
+  common.ctx.net_idx = s_app_state.net_idx;
+  common.ctx.app_idx = s_app_state.app_idx;
+  common.ctx.addr = addr;
+  common.ctx.send_ttl = 7;
+  common.msg_timeout = 1000;
+
+  s_poll_result = POLL_RESULT_NONE;
+  bt_mesh_scan_enable();
+  esp_ble_mesh_generic_client_get_state(&common, &get);
+}
+
+void ble_mesh_bridge_poll_end(void) { bt_mesh_scan_disable(); }
+
+int ble_mesh_bridge_take_poll_result(void) {
+  int r = s_poll_result;
+  s_poll_result = POLL_RESULT_NONE;
+  return r;
 }
 
 void ble_mesh_bridge_send_onoff(uint16_t addr, bool state, bool use_ack,
