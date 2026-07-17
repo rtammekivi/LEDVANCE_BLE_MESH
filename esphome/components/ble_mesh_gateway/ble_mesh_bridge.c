@@ -22,6 +22,8 @@
 #include "esp_ble_mesh_provisioning_api.h"
 
 static const char *TAG = "ble_mesh_bridge";
+
+extern int bt_mesh_scan_disable(void);
 #define CID_ESP 0x02E5
 #define NVS_MESH_INFO_KEY "mesh_info_clean"
 
@@ -313,6 +315,8 @@ void ble_mesh_bridge_init(void) {
     }
   } else {
     LOG_I(TAG, "Node already provisioned, skipping prov enable");
+    bt_mesh_scan_disable();
+    LOG_I(TAG, "Mesh RX scan disabled (TX-only gateway)");
   }
 
   LOG_I(TAG, "BLE Mesh Node initialized (Bridge)");
