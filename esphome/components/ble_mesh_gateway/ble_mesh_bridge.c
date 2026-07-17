@@ -46,6 +46,8 @@ static mesh_app_state_t s_app_state = {
 
 static uint8_t s_dev_uuid[16] = {0};
 
+volatile bool ble_mesh_bridge_prov_link_open = false;
+
 // --- Model Definitions ---
 static esp_ble_mesh_cfg_srv_t config_server = {
     .relay = ESP_BLE_MESH_RELAY_DISABLED,
@@ -128,9 +130,11 @@ static void prov_callback(esp_ble_mesh_prov_cb_event_t event,
     break;
   case ESP_BLE_MESH_NODE_PROV_LINK_OPEN_EVT:
     ESP_LOGI(TAG, "Prov link open, bearer %d", param->node_prov_link_open.bearer);
+    ble_mesh_bridge_prov_link_open = true;
     break;
   case ESP_BLE_MESH_NODE_PROV_LINK_CLOSE_EVT:
     ESP_LOGI(TAG, "Prov link closed, bearer %d", param->node_prov_link_close.bearer);
+    ble_mesh_bridge_prov_link_open = false;
     break;
   case ESP_BLE_MESH_NODE_PROV_COMPLETE_EVT:
     ESP_LOGI(TAG, "Provisioning Complete. NetKey Index: 0x%04X",
@@ -312,6 +316,14 @@ void ble_mesh_bridge_init(void) {
   }
 
   LOG_I(TAG, "BLE Mesh Node initialized (Bridge)");
+}
+
+void ble_mesh_bridge_renew_prov_adv(void) {
+  if (esp_ble_mesh_node_is_provisioned() || ble_mesh_bridge_prov_link_open) {
+    return;
+  }
+  esp_ble_mesh_node_prov_disable(ESP_BLE_MESH_PROV_GATT);
+  esp_ble_mesh_node_prov_enable(ESP_BLE_MESH_PROV_GATT);
 }
 
 void ble_mesh_bridge_send_onoff(uint16_t addr, bool state, bool use_ack) {

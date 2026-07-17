@@ -34,6 +34,14 @@ public:
           warned = true;
         }
       }
+    } else {
+      // Renew the 60s fast-advertising window so the unprovisioned node
+      // stays reliably visible to provisioner apps
+      uint32_t now = millis();
+      if (now - this->last_prov_renew_ > 45000) {
+        this->last_prov_renew_ = now;
+        ble_mesh_bridge_renew_prov_adv();
+      }
     }
   }
 
@@ -111,6 +119,7 @@ public:
 
 protected:
   bool init_done_ = false;
+  uint32_t last_prov_renew_ = 0;
 };
 
 } // namespace esphome::ble_mesh_gateway
