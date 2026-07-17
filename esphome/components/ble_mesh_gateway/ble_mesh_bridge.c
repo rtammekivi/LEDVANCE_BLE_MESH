@@ -322,6 +322,18 @@ void ble_mesh_bridge_init(void) {
   LOG_I(TAG, "BLE Mesh Node initialized (Bridge)");
 }
 
+static uint8_t encode_trans_time(uint32_t ms) {
+  if (ms == 0)
+    return 0x00;
+  if (ms <= 6200)
+    return (uint8_t)(ms / 100);
+  if (ms <= 62000)
+    return 0x40 | (uint8_t)(ms / 1000);
+  if (ms <= 620000)
+    return 0x80 | (uint8_t)(ms / 10000);
+  return 0xC0 | (uint8_t)(ms / 600000);
+}
+
 void ble_mesh_bridge_renew_prov_adv(void) {
   if (esp_ble_mesh_node_is_provisioned() || ble_mesh_bridge_prov_link_open) {
     return;
@@ -330,7 +342,8 @@ void ble_mesh_bridge_renew_prov_adv(void) {
   esp_ble_mesh_node_prov_enable(ESP_BLE_MESH_PROV_GATT);
 }
 
-void ble_mesh_bridge_send_onoff(uint16_t addr, bool state, bool use_ack) {
+void ble_mesh_bridge_send_onoff(uint16_t addr, bool state, bool use_ack,
+                                uint32_t trans_ms, uint16_t delay_ms) {
   if (s_app_state.app_idx == ESP_BLE_MESH_KEY_UNUSED) {
     LOG_W(TAG, "AppKey not bound, cannot send OnOff.");
     return;
@@ -348,9 +361,11 @@ void ble_mesh_bridge_send_onoff(uint16_t addr, bool state, bool use_ack) {
   common.ctx.send_ttl = 7;
   common.msg_timeout = use_ack ? 1000 : 0;
 
-  set.onoff_set.op_en = false;
+  set.onoff_set.op_en = (trans_ms || delay_ms);
   set.onoff_set.onoff = state ? 1 : 0;
   set.onoff_set.tid = s_app_state.tid++;
+  set.onoff_set.trans_time = encode_trans_time(trans_ms);
+  set.onoff_set.delay = (uint8_t)(delay_ms / 5);
 
   LOG_I(TAG, "Send OnOff %s to 0x%04X (%s)",
         state ? "ON" : "OFF", addr, use_ack ? "ACK" : "UNACK");
@@ -361,7 +376,8 @@ void ble_mesh_bridge_send_onoff(uint16_t addr, bool state, bool use_ack) {
   }
 }
 
-void ble_mesh_bridge_send_level(uint16_t addr, uint16_t level, bool use_ack) {
+void ble_mesh_bridge_send_level(uint16_t addr, uint16_t level, bool use_ack,
+                                uint32_t trans_ms, uint16_t delay_ms) {
   if (s_app_state.app_idx == ESP_BLE_MESH_KEY_UNUSED)
     return;
 
@@ -377,9 +393,11 @@ void ble_mesh_bridge_send_level(uint16_t addr, uint16_t level, bool use_ack) {
   common.ctx.send_ttl = 7;
   common.msg_timeout = use_ack ? 1000 : 0;
 
-  set.lightness_set.op_en = false;
+  set.lightness_set.op_en = (trans_ms || delay_ms);
   set.lightness_set.lightness = level;
   set.lightness_set.tid = s_app_state.tid++;
+  set.lightness_set.trans_time = encode_trans_time(trans_ms);
+  set.lightness_set.delay = (uint8_t)(delay_ms / 5);
 
   LOG_I(TAG, "Send Lightness %d to 0x%04X (%s)",
         level, addr, use_ack ? "ACK" : "UNACK");

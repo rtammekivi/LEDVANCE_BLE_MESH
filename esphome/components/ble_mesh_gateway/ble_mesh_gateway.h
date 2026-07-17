@@ -52,7 +52,8 @@ public:
   // --- Public API for YAML Lambdas ---
 
   void control_light(uint16_t addr, float state, uint32_t &last_send,
-                     uint16_t max_level = 65535, bool use_ack = false) {
+                     uint16_t max_level = 65535, bool use_ack = false,
+                     uint32_t trans_ms = 0, uint16_t delay_ms = 0) {
     if (!this->init_done_) {
       ESP_LOGW(TAG, "Mesh not ready, skipping control_light");
       return;
@@ -68,11 +69,11 @@ public:
         level = (uint16_t)(state * max_level);
       }
 
-      ble_mesh_bridge_send_level(addr, level, use_ack);
+      ble_mesh_bridge_send_level(addr, level, use_ack, trans_ms, delay_ms);
 
       // Send explicit OnOff command only when turning off completely
       if (state == 0) {
-        ble_mesh_bridge_send_onoff(addr, false, use_ack);
+        ble_mesh_bridge_send_onoff(addr, false, use_ack, trans_ms, delay_ms);
       }
       last_send = now;
     }
