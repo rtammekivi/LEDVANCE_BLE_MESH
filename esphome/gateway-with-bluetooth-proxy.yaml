@@ -177,7 +177,6 @@ script:
                 static int empty_polls = 0;
                 int r = ble_mesh_bridge_take_poll_result();
                 ble_mesh_bridge_poll_end();
-                id(mesh_lamps_responding).publish_state(ble_mesh_bridge_poll_reply_count());
                 bool on;
                 if (r == -2) {
                   empty_polls++;
@@ -188,6 +187,7 @@ script:
                   empty_polls = 0;
                   on = (r == 1);
                 }
+                id(mesh_lamps_responding).publish_state(r != -2);
                 if (id(mesh_light_group).remote_values.is_on() != on) {
                   auto call = id(mesh_light_group).make_call();
                   call.set_state(on);
@@ -207,6 +207,13 @@ interval:
           last = now;
           id(mesh_poll).execute();
 
+binary_sensor:
+  - platform: template
+    name: "Mesh Lamps Responding"
+    id: mesh_lamps_responding
+    device_class: connectivity
+    entity_category: diagnostic
+
 switch:
   - platform: template
     name: "Mesh Provisioning Mode"
@@ -225,11 +232,4 @@ light:
     gamma_correct: 1.0
     default_transition_length: 0s
 
-sensor:
-  - platform: template
-    name: "Mesh Lamps Responding"
-    id: mesh_lamps_responding
-    icon: mdi:lightbulb-group
-    accuracy_decimals: 0
-    entity_category: diagnostic
-    update_interval: never
+
