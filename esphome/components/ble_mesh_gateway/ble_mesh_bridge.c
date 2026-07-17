@@ -376,8 +376,9 @@ void ble_mesh_bridge_poll_onoff(uint16_t addr) {
   common.msg_timeout = 1000;
 
   s_poll_result = POLL_RESULT_NONE;
-  bt_mesh_scan_enable();
-  esp_ble_mesh_generic_client_get_state(&common, &get);
+  int scan_err = bt_mesh_scan_enable();
+  esp_err_t get_err = esp_ble_mesh_generic_client_get_state(&common, &get);
+  LOG_I(TAG, "Poll OnOff 0x%04X: scan_err=%d get_err=%d", addr, scan_err, (int)get_err);
 }
 
 void ble_mesh_bridge_poll_end(void) { bt_mesh_scan_disable(); }
