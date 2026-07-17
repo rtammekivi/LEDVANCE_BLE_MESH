@@ -27,9 +27,9 @@ static const char *TAG = "ble_mesh_bridge";
 
 // Custom logging macros that work with ESPHome's logging system
 // ESP-IDF's ESP_LOGx macros don't appear in ESPHome's log output from C files
-#define LOG_I(tag, fmt, ...) printf("[I][%s]: " fmt "\n", tag, ##__VA_ARGS__)
-#define LOG_W(tag, fmt, ...) printf("[W][%s]: " fmt "\n", tag, ##__VA_ARGS__)
-#define LOG_E(tag, fmt, ...) printf("[E][%s]: " fmt "\n", tag, ##__VA_ARGS__)
+#define LOG_I(tag, fmt, ...) ESP_LOGI(tag, fmt, ##__VA_ARGS__)
+#define LOG_W(tag, fmt, ...) ESP_LOGW(tag, fmt, ##__VA_ARGS__)
+#define LOG_E(tag, fmt, ...) ESP_LOGE(tag, fmt, ##__VA_ARGS__)
 
 // --- State ---
 typedef struct {
@@ -121,7 +121,16 @@ static void prov_callback(esp_ble_mesh_prov_cb_event_t event,
                           esp_ble_mesh_prov_cb_param_t *param) {
   switch (event) {
   case ESP_BLE_MESH_PROV_REGISTER_COMP_EVT:
-    ESP_LOGI(TAG, "Registered Composition");
+    ESP_LOGI(TAG, "Registered Composition, err_code %d", param->prov_register_comp.err_code);
+    break;
+  case ESP_BLE_MESH_NODE_PROV_ENABLE_COMP_EVT:
+    ESP_LOGI(TAG, "Prov enable complete, err_code %d", param->node_prov_enable_comp.err_code);
+    break;
+  case ESP_BLE_MESH_NODE_PROV_LINK_OPEN_EVT:
+    ESP_LOGI(TAG, "Prov link open, bearer %d", param->node_prov_link_open.bearer);
+    break;
+  case ESP_BLE_MESH_NODE_PROV_LINK_CLOSE_EVT:
+    ESP_LOGI(TAG, "Prov link closed, bearer %d", param->node_prov_link_close.bearer);
     break;
   case ESP_BLE_MESH_NODE_PROV_COMPLETE_EVT:
     ESP_LOGI(TAG, "Provisioning Complete. NetKey Index: 0x%04X",
