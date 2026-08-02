@@ -40,6 +40,10 @@ esp32:
       CONFIG_BLE_MESH_SETTINGS: "y"
       CONFIG_BLE_MESH_STORE_TIMEOUT: "2"
       CONFIG_BLE_MESH_SEQ_STORE_RATE: "120"
+      CONFIG_BLE_MESH_SUPPORT_BLE_SCAN: "y"
+      CONFIG_BTDM_SCAN_DUPL_TYPE_DEVICE: "n"
+      CONFIG_BTDM_SCAN_DUPL_TYPE_DATA_DEVICE: "y"
+      CONFIG_BTDM_SCAN_DUPL_CACHE_REFRESH_PERIOD: "1"
 
 logger:
 
@@ -172,7 +176,6 @@ script:
               - wifi.connected:
               - switch.is_off: prov_mode
           then:
-            - esp32_ble_tracker.stop_scan:
             - delay: 300ms
             - lambda: ble_mesh_bridge_poll_onoff(0xC000);
             - delay: 1500ms
@@ -196,7 +199,6 @@ script:
                   call.set_state(on);
                   call.perform();
                 }
-            - esp32_ble_tracker.start_scan:
 
 interval:
   - interval: 5s
@@ -226,6 +228,7 @@ switch:
       - esp32_ble_tracker.stop_scan:
     turn_off_action:
       - esp32_ble_tracker.start_scan:
+          continuous: true
 
 light:
   - platform: monochromatic
