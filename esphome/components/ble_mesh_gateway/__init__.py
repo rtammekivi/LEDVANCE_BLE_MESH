@@ -2,7 +2,7 @@ import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.const import CONF_ID
 
-DEPENDENCIES = ['esp32']
+DEPENDENCIES = ['esp32', 'esp32_ble_tracker']
 
 ble_mesh_gateway_ns = cg.esphome_ns.namespace('ble_mesh_gateway')
 BleMeshGateway = ble_mesh_gateway_ns.class_('BleMeshGateway', cg.Component)

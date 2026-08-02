@@ -54,6 +54,21 @@ typedef void (*ble_mesh_ctl_temp_range_cb_t)(uint16_t addr, uint16_t range_min,
                                              uint16_t range_max);
 void ble_mesh_bridge_set_ctl_temp_range_callback(ble_mesh_ctl_temp_range_cb_t cb);
 
+
+#define BLE_MESH_FWD_ADV_MAX_LEN 62
+
+typedef struct {
+  uint8_t addr[6];
+  uint8_t addr_type;
+  int8_t rssi;
+  uint8_t len;
+  uint8_t data[BLE_MESH_FWD_ADV_MAX_LEN];
+} ble_mesh_fwd_adv_t;
+
+void ble_mesh_bridge_start_ble_scan(void);
+int ble_mesh_bridge_take_adv(ble_mesh_fwd_adv_t *out);
+uint32_t ble_mesh_bridge_adv_total(void);
+
 #ifdef __cplusplus
 }
 #endif

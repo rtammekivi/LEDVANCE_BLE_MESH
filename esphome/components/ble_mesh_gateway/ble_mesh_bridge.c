@@ -12,6 +12,7 @@
 #include "nvs_flash.h"
 #include <string.h>
 
+#include "esp_ble_mesh_ble_api.h"
 #include "esp_ble_mesh_common_api.h"
 #include "esp_ble_mesh_config_model_api.h"
 #include "esp_ble_mesh_defs.h"
@@ -288,6 +289,62 @@ bool ble_mesh_bridge_is_ready_to_init(void) {
   return esp_bt_controller_get_status() == ESP_BT_CONTROLLER_STATUS_ENABLED;
 }
 
+
+#define ADV_RING_SIZE 32
+static ble_mesh_fwd_adv_t s_adv_ring[ADV_RING_SIZE];
+static volatile uint32_t s_adv_head = 0;
+static volatile uint32_t s_adv_tail = 0;
+static volatile uint32_t s_adv_total = 0;
+
+static void ble_scan_cb(esp_ble_mesh_ble_cb_event_t event,
+                        esp_ble_mesh_ble_cb_param_t *param) {
+  if (event == ESP_BLE_MESH_START_BLE_SCANNING_COMP_EVT) {
+    LOG_I(TAG, "BLE scan forwarding started");
+    return;
+  }
+  if (event != ESP_BLE_MESH_SCAN_BLE_ADVERTISING_PKT_EVT) {
+    return;
+  }
+
+  const esp_ble_mesh_ble_adv_rpt_t *r = &param->scan_ble_adv_pkt;
+  uint32_t head = s_adv_head;
+  uint32_t next = (head + 1u) % ADV_RING_SIZE;
+  if (next == s_adv_tail) {
+    return;
+  }
+
+  ble_mesh_fwd_adv_t *slot = &s_adv_ring[head];
+  memcpy(slot->addr, r->addr, 6);
+  slot->addr_type = r->addr_type;
+  slot->rssi = r->rssi;
+  uint16_t n = r->length > BLE_MESH_FWD_ADV_MAX_LEN ? BLE_MESH_FWD_ADV_MAX_LEN : r->length;
+  if (n && r->data) {
+    memcpy(slot->data, r->data, n);
+  }
+  slot->len = (uint8_t)n;
+
+  s_adv_head = next;
+  s_adv_total++;
+}
+
+int ble_mesh_bridge_take_adv(ble_mesh_fwd_adv_t *out) {
+  uint32_t tail = s_adv_tail;
+  if (tail == s_adv_head) {
+    return 0;
+  }
+  *out = s_adv_ring[tail];
+  s_adv_tail = (tail + 1u) % ADV_RING_SIZE;
+  return 1;
+}
+
+uint32_t ble_mesh_bridge_adv_total(void) { return s_adv_total; }
+
+void ble_mesh_bridge_start_ble_scan(void) {
+  esp_ble_mesh_ble_scan_param_t p = {.duration = 0};
+  esp_err_t err = esp_ble_mesh_start_ble_scanning(&p);
+  LOG_I(TAG, "esp_ble_mesh_start_ble_scanning err=%d", (int)err);
+}
+
 void ble_mesh_bridge_init(void) {
   // Note: Bluetooth controller init is handled by ESPHome's
   // esp32_ble_tracker/esp_bt registration
@@ -312,6 +369,7 @@ void ble_mesh_bridge_init(void) {
 
   mesh_info_restore();
 
+  esp_ble_mesh_register_ble_callback(ble_scan_cb);
   esp_ble_mesh_register_prov_callback(prov_callback);
   esp_ble_mesh_register_config_server_callback(config_server_callback);
   esp_ble_mesh_register_generic_client_callback(generic_client_callback);
@@ -344,6 +402,8 @@ void ble_mesh_bridge_init(void) {
     bt_mesh_scan_disable();
     LOG_I(TAG, "Mesh RX scan disabled (TX-only gateway)");
   }
+
+  ble_mesh_bridge_start_ble_scan();
 
   LOG_I(TAG, "BLE Mesh Node initialized (Bridge)");
 }
@@ -392,7 +452,7 @@ void ble_mesh_bridge_poll_onoff(uint16_t addr) {
   LOG_I(TAG, "Poll OnOff 0x%04X: scan_err=%d get_err=%d", addr, scan_err, (int)get_err);
 }
 
-void ble_mesh_bridge_poll_end(void) { bt_mesh_scan_disable(); }
+void ble_mesh_bridge_poll_end(void) {}
 
 int ble_mesh_bridge_poll_reply_count(void) { return s_poll_replies; }
 

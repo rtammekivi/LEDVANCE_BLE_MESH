@@ -2,6 +2,7 @@
 
 #include "ble_mesh_bridge.h"
 #include "esphome.h"
+#include "esphome/components/esp32_ble_tracker/esp32_ble_tracker.h"
 
 #if !defined(CONFIG_BLE_MESH)
 #error "CONFIG_BLE_MESH not defined! Check sdkconfig."
@@ -35,6 +36,8 @@ public:
         }
       }
     } else {
+      this->drain_forwarded_adverts_();
+
       // Renew the 60s fast-advertising window so the unprovisioned node
       // stays reliably visible to provisioner apps
       uint32_t now = millis();
@@ -42,6 +45,24 @@ public:
         this->last_prov_renew_ = now;
         ble_mesh_bridge_renew_prov_adv();
       }
+    }
+  }
+
+  void drain_forwarded_adverts_() {
+    ble_mesh_fwd_adv_t adv;
+    for (int i = 0; i < 16 && ble_mesh_bridge_take_adv(&adv); i++) {
+      if (esp32_ble_tracker::global_esp32_ble_tracker == nullptr)
+        return;
+      esp32_ble::BLEScanResult r{};
+      memcpy(r.bda, adv.addr, sizeof(r.bda));
+      r.ble_addr_type = adv.addr_type;
+      r.rssi = adv.rssi;
+      uint8_t len = adv.len > sizeof(r.ble_adv) ? sizeof(r.ble_adv) : adv.len;
+      memcpy(r.ble_adv, adv.data, len);
+      r.adv_data_len = len;
+      r.scan_rsp_len = 0;
+      r.search_evt = ESP_GAP_SEARCH_INQ_RES_EVT;
+      esp32_ble_tracker::global_esp32_ble_tracker->gap_scan_event_handler(r);
     }
   }
 
